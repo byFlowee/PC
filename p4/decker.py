@@ -3,9 +3,8 @@ import threading
 states = [False, False]
 turn = 0
 
-
 THREADS = 2
-MAX_COUNT = 1000000000
+MAX_COUNT = 10000
 
 counter = 0
 
@@ -16,21 +15,19 @@ def entry_critical_section(i):
     while states[(i+1)%2]:
         if turn == ((i+1)%2):
             states[i] = False
-
-            while turn == ((i+1)%2):
+            while turn != i:
                 pass
-
             states[i] = True
 
 def critical_section(i):
     global counter
     counter += 1
-    print("Hilo {} : I = {}\n".format(i, counter))
+    print("Hilo {} : I = {}".format(i, counter))
 
 def exit_critical_section(i):
     global states
     global turn
-    turno = ((i+1)%2)
+    turn = ((i+1)%2)
     states[i] = False
 
 def thread(i):

@@ -5,23 +5,21 @@
 #include <unistd.h>
 
 #define MAX_COUNT 100000
-#define THREADS 8
+#define THREADS 8           //Numero de threads
 
 int I = 0;
 
 void protocolo_entrada() {
     asm(
-            ".data\n\t"	/* Declaro la variable estatica lock (solo vale para hilos)*/
-            "lock:\n\t"
-            ".byte 0\n\t"  /* la inicializo a 0 (seccion critica libre) */
-            ".text\n\t"	/* comienzan las instrucciones */
-            "_protocolo_de_entrada:\n\t"   /* etiqueta al principio de la espera ocupada */
-            "movb $1, %al\n\t" 	 /* muevo 1 al registro AL */
-            "xchgb (lock),%al\n\t"  /* intercambio el valor de lock con 1 de manera atomica*/
-            "cmp $0, %al\n\t"	 /* comparo lo que habia en lock con 0 */
-            "jne _protocolo_de_entrada\n\t"  /* si lock era 0, la seccion critica estaba libre */
-    					  /* y salgo de la espera ocupada, ahora lock = 1,  */
-    					  /* si lock era 1, sigue siendo 1 y vuelvo a comprobar */
+            ".data\n\t"
+            "lock:\n\t"                     //Variable estatica lock, que contendra el estado de la seccion critica (ocupado o desocupado)
+            ".byte 0\n\t"                   //Se inicializa a 1
+            ".text\n\t"
+            "_protocolo_de_entrada:\n\t"    //Label de salto para el bucle de espera
+            "movb $1, %al\n\t" 	            //Movemos un 1 al registro AL
+            "xchgb (lock),%al\n\t"          //Intercambiamos el valor de AL con el de la variable Lock de forma atómica
+            "cmp $0, %al\n\t"	              //Comprobamos lo que habia en lock, si habia un 0, está libre y ahora está el uno que hemos movido, por tanto queda ocupada
+            "jne _protocolo_de_entrada\n\t" //Si lock valia 1, está ocupada y volvemos a comprobar
         );
 }
 
@@ -30,7 +28,7 @@ void seccion_critica(){
 }
 
 void protocolo_salida() {
-    asm("movb $0, (lock)");
+    asm("movb $0, (lock)");           );      //Al salir de la s.c, volvemos a dejarla libre moviendo un 0 a Lock
 }
 
 void *codigo_del_hilo (void *id){
@@ -45,6 +43,7 @@ void *codigo_del_hilo (void *id){
   pthread_exit (id);
 }
 
+// Inicializa el vector de ID's en funcion del número de threads que hay
 void init(int *id) {
 
     for (int i = 0; i < THREADS; i++) {

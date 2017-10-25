@@ -1,7 +1,7 @@
 import threading
 
-choosing = []
-number = []
+choosing = []                               # Vector que almacena el estado de el hilo, 1 si está eligiendo, 0 en otro caso
+number = []                                 # Vector que contiene el numero que ha sacado cada hilo
 
 THREADS = 4
 MAX_COUNT = 1000
@@ -12,14 +12,15 @@ def entry_critical_section(i):
     global chhoosing
     global number
 
-    choosing[i] = True;
-    number[i] = 1 + max(number)
-    choosing[i] = False
+    choosing[i] = True;                     # Hilo i le toca elegir número
+    number[i] = 1 + max(number)             # Elige el mayor numero del vector number + 1
+    choosing[i] = False                     # Hilo i ya ha elegido numero
 
-    for j in range(0,THREADS):
-        while choosing[j]:
+    for j in range(0,THREADS):              # Para cada hilo
+        while choosing[j]:                  # Si el hilo está eligiendo numero, espero
             pass
-        while number[j] > 0 and (number[j] < number[i] or (number[j] == number[i] and j < i)):
+        while number[j] > 0 and (number[j] < number[i] or (number[j] == number[i] and j < i)):      # Si el hilo j ha elegido numero (es mayor que 0) AND es menor que el de i
+                                                                                                    # si el número es igual, entonces si j lo ha sacado antes (j < i), Espero
             pass
 
 
@@ -41,6 +42,7 @@ def thread(i):
 def main():
     threads = []
 
+    # Inicializamos los vectores choosing y number
     for i in range(THREADS):
         choosing.append(False)
         number.append(0)

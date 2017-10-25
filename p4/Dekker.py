@@ -11,13 +11,13 @@ counter = 0
 def entry_critical_section(i):
     global states
     global turn
-    states[i] = True
-    while states[(i+1)%2]:
-        if turn == ((i+1)%2):
-            states[i] = False
-            while turn != i:
+    states[i] = True                          # Hilo 1 quiere entra
+    while states[(i+1)%2]:                    # Mientras el hilo 2 quiera entrar
+        if turn == ((i+1)%2):                 # Si el turno es del hilo 2
+            states[i] = False                 # No quiero entrar
+            while turn != i:                  # Mientras el turno no sea del Hilo 1, espero
                 pass
-            states[i] = True
+            states[i] = True                  # Hilo 1 quiere entrar
 
 def critical_section(i):
     global counter

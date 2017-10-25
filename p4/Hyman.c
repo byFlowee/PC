@@ -13,18 +13,19 @@ void *codigo_del_hilo (void *id){
   int j = (i == 0)? 1 : 0;
   int k;
 
-  for(k=0; k<1000000; k++){
+  for(k=0; k<100000; k++){
 
-    estados[i] = 1;
-    while(turn != i){
-        while(estados[j]);
-        turn = i;
+    usleep(10);
+    estados[i] = 1;                     // El hilo 1 quiere entrar
+    while(turn != i){                   // Mientras no sea su turno
+        while(estados[j]);              // Mientras el hilo 2 quiera entrar, espero
+        turn = i;                       // Turno del hilo 1
     }
 
-    I++;
+    I = I + 1;                          // entra a la s.c
     printf("En hilo %d, I=%d\n", i,I);
 
-    estados[i] = 0;
+    estados[i] = 0;                     // Hilo 1 ya no quiere entrar
 
   }
   pthread_exit (id);
@@ -53,4 +54,6 @@ int main(){
     else
       printf ("Hilo %d terminado\n", *salida);
   }
+
+  printf("Counter: %d\n", I);
 }

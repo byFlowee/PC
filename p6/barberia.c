@@ -8,25 +8,27 @@
 #define MAX_CLIENTES 20
 #define PLAZAS_SOFA 4
 #define NUM_BARBEROS 3
-#define NUM_CLIENTES 20
+#define NUM_CLIENTES 30
 
-int fin = 1;
-int currentClient = 0;
+int currentClient = 0;  //
+int sofaClient = 0;     // Variables de control que se acceden en exclusion mutua
+int chairClient = 0;    //
 
 struct tdata {
     int tid;
 };
 
-pthread_mutex_t terminado = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t dejar_silla = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t cliente_listo = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t pago = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t recibo = PTHREAD_MUTEX_INITIALIZER;
-
+sem_t terminado;
+sem_t dejar_silla;
+sem_t cliente_listo;
+sem_t pago;
+sem_t recibo;
 sem_t max_clientes;
 sem_t sofa;
 sem_t silla_barbero;
 sem_t coord_barbero;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;  //mutex para acceder a las variables de control
 
 /*wait(pago)
   wait(coord)
@@ -38,14 +40,16 @@ sem_t coord_barbero;
 void *cajero(void *ptr) {
     int id = ((struct tdata *) ptr)->tid - NUM_BARBEROS;
     while(1) {
-        pthread_mutex_lock(&pago);
-        sem_wait(&coord_barbero);
+        sem_wait(&pago);  //Bloquea al cajero hasta que el cliente pague
+        sem_wait(&coord_barbero); //Bloquea al barbero si hay 3 barberos ocupados (cortando el pelo o en caja)
 
+        printf("\n...\n");
         printf("El barbero %d cobra\n", id);
+        printf("...\n\n");
         usleep(500*1000);
 
-        sem_post(&coord_barbero);
-        pthread_mutex_unlock(&recibo);
+        sem_post(&coord_barbero); //Libera para indicar que el barbero está libre
+        sem_post(&recibo);  //Libera para indicar al cliente que ya tiene su recibo
     }
 }
 
@@ -59,18 +63,20 @@ void *cajero(void *ptr) {
 */
 
 void *barbero(void *ptr) {
-    int id = ((struct tdata *) ptr)->tid;
+    int id = ((struct tdata *) ptr)->tid + 1;
     while(1) {
-        pthread_mutex_lock(&cliente_listo);
-        sem_wait(&coord_barbero);
+        sem_wait(&cliente_listo); //Bloquea al barbero hasta que el cliente esté sentado en la silla
+        sem_wait(&coord_barbero); //Bloquea al barbero si hay 3 barberos ocupados (cortando el pelo o en caja)
 
+        printf("\n...\n");
         printf("El barbero %d corta el pelo\n", id);
+        printf("...\n");
         usleep(500*1000);
 
-        sem_post(&coord_barbero);
-        pthread_mutex_unlock(&terminado);
-        pthread_mutex_lock(&dejar_silla);
-        sem_post(&silla_barbero);
+        sem_post(&coord_barbero); //Libera para indicar que el barbero está libre
+        sem_post(&terminado); //Libera para indicar al cliente que ha acabado
+        sem_wait(&dejar_silla); //Bloquea al barbero hasta que el cliente se levante de la silla
+        sem_post(&silla_barbero); //Libera la silla para que otros clientes puedan sentarse
     }
 }
 
@@ -82,47 +88,67 @@ void *barbero(void *ptr) {
   wait(terminado);
   signal(dejar_silla_barbero);
   signal(pago);
-  wait(recibo);
+  wait(recibo);chairClient
   signal(max_capacidad);
 */
 
 void *client(void *ptr) {
-    int id = ((struct tdata *) ptr)->tid;
+    int id = ((struct tdata *) ptr)->tid + 1;
     usleep(100*1000);
 
-    sem_wait(&max_clientes);
+    sem_wait(&max_clientes);  //Bloquea la entrada cuando no queda sitio en la tienda, inicializado a la capacidad maxima de clientes (20)
 
     usleep(100*1000);
+
+    pthread_mutex_lock(&mutex);
     currentClient++;
+    pthread_mutex_unlock(&mutex);
+
     printf("Cliente %d entra en la barberia, hay %d clientes en la tienda\n", id, currentClient);
 
-    sem_wait(&sofa);
+    sem_wait(&sofa);  //Bloquea la entrada al sofa si no hay sitio, inicializado a la capacidad máxima del sofa (4)
 
-    printf("Cliente %d se sienta en el sofa\n", id);
+    pthread_mutex_lock(&mutex);
+    ++sofaClient;
+    pthread_mutex_unlock(&mutex);
+
+    printf("Cliente %d se sienta en el sofa, hay %d clientes sentados en el sofa\n", id, sofaClient);
     usleep(100*1000);
 
-    sem_wait(&silla_barbero);
+    sem_wait(&silla_barbero); //Bloquea la entrada a las sillas de los barberos si no hay ninguna libre, inicializado al número de sillas (3, una por barbero)
 
-    printf("Cliente %d se levanta del sofa\n", id);
+    pthread_mutex_lock(&mutex);
+    --sofaClient;
+    pthread_mutex_unlock(&mutex);
 
-    sem_post(&sofa);
+    printf("Cliente %d se levanta del sofa, hay %d clientes sentados en el sofa\n", id, sofaClient);
 
-    printf("Cliente %d se sienta en la silla del barbero\n", id);
+    sem_post(&sofa);  //El cliente se levanta del sofa, liberamos el semaforo para que otro cliente se siente
+
+    pthread_mutex_lock(&mutex);
+    ++chairClient;
+    pthread_mutex_unlock(&mutex);
+
+    printf("Cliente %d se sienta en la silla del barbero, hay %d sillas ocupadas\n", id, chairClient);
     usleep(100*1000);
 
-    pthread_mutex_unlock(&cliente_listo);
-    pthread_mutex_lock(&terminado);
+    sem_post(&cliente_listo);   //El cliente se ha sentado en la silla del barbero, hacemos signal para desbloquear al barbero y que corte el pelo
+    sem_wait(&terminado);   //Bloquea al cliente hasta el barbero haya terminado de cortar el pelo
 
-    printf("Cliente %d se levanta de la silla del barbero\n", id);
+    pthread_mutex_lock(&mutex);
+    --chairClient;
+    pthread_mutex_unlock(&mutex);
+
+    printf("Cliente %d se levanta de la silla del barbero, hay %d sillas ocupadas\n", id, chairClient);
     usleep(100*1000);
 
-    pthread_mutex_unlock(&dejar_silla);
-    pthread_mutex_unlock(&pago);
-    pthread_mutex_lock(&recibo);
+    sem_post(&dejar_silla); //El cliente se ha levantado de la silla, liberamos el semaforo para que el barbero continue con otra tarea
+    sem_post(&pago);  //Indica al cajero que va a pagar
+    sem_wait(&recibo);  //Espera a que haga el recibo
 
     printf("Cliente %d sale de la barberia, quedan %d clientes\n", id, --currentClient);
 
-    sem_post(&max_clientes);
+    sem_post(&max_clientes);  //El cliente sale de la tienda, liberamos el semaforo para otros clientes puedan entrar
 }
 
 int main (int argc, char *argv[]) {
@@ -135,27 +161,31 @@ int main (int argc, char *argv[]) {
     sem_init(&max_clientes, 0, MAX_CLIENTES);
     sem_init(&sofa, 0, PLAZAS_SOFA);
     sem_init(&silla_barbero, 0, NUM_BARBEROS);
+    sem_init(&terminado, 0, 0);
+    sem_init(&dejar_silla, 0, 0);
+    sem_init(&pago, 0, 0);
+    sem_init(&recibo, 0, 0);
     sem_init(&coord_barbero, 0, NUM_BARBEROS);
-
-    pthread_mutex_lock(&cliente_listo);
-    pthread_mutex_lock(&pago);
-    pthread_mutex_lock(&recibo);
 
     for(i=0; i<NUM_CLIENTES; i++){
         id2[i].tid = i;
+        usleep((rand() % 20 + 1)*1000);   //Espera un numero aleatorio entre 1 y 20 milisegundos entre cada cliente
         rc = pthread_create(&th_clientes[i], NULL, client, (void *) &id2[i]);
     }
 
-    for(i=0; i<NUM_BARBEROS; i++){
+    for(i=0; i<NUM_BARBEROS; i++){  // Ejecutamos 2*NUM_BARBEROS Hilos para separar el codigo de barberos y cajeros,
+                                    // controlamos mediante el semaforo coord_barbero que solo NUM_BARBEROS puedan realizar tareas simultaneamente
         id[i].tid = i;
         id[NUM_BARBEROS + i].tid = NUM_BARBEROS + i;
-        pthread_create(&th_barberos[i], NULL, barbero, (void *) &id[i]);
-        pthread_create(&th_barberos[NUM_BARBEROS + i], NULL, cajero, (void *) &id[NUM_BARBEROS + i]);
+        pthread_create(&th_barberos[i], NULL, barbero, (void *) &id[i]);  //Hilos de barberos
+        pthread_create(&th_barberos[NUM_BARBEROS + i], NULL, cajero, (void *) &id[NUM_BARBEROS + i]); //Hilos de cajeros
     }
 
-    for(i=0; i<NUM_CLIENTES; i++){
+    for(i=0; i<NUM_CLIENTES; i++){  //Esperamos a que todos los clientes acaben
         pthread_join(th_clientes[i], NULL);
     }
+
+    printf("\nHa salido el ultimo cliente, se cierra la tienda\n");
 
     return 0;
 }

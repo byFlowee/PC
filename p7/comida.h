@@ -4,9 +4,12 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #define PHILOSOPHERS 5
-#define EAT_COUNT 100
+#define EAT_COUNT 20
 
 typedef struct {
     uint8_t id;

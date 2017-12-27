@@ -8,8 +8,8 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define PHILOSOPHERS 5
-#define EAT_COUNT 20
+#define PHILOSOPHERS 5    //Numero de filosofos
+#define EAT_COUNT 20      //Numero de veces que come cada filosofo
 
 
 //Estructura filosofo, contiene su indice y el de los filosofos adyacentes
@@ -39,8 +39,6 @@ void setup(comida_t *comida);
 
 void pick(uint8_t id, comida_t *comida);
 void release(uint8_t id, comida_t *comida);
-
-void think();
 void eat(uint8_t id);
 
 #endif

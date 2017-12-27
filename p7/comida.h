@@ -11,12 +11,15 @@
 #define PHILOSOPHERS 5
 #define EAT_COUNT 20
 
+
+//Estructura filosofo, contiene su indice y el de los filosofos adyacentes
 typedef struct {
     uint8_t id;
     uint8_t right;
     uint8_t left;
 }philosopher_t;
 
+//Estructura que contiene todos los filosofos, sus palillos y los monitores
 typedef struct {
     uint8_t picks[PHILOSOPHERS];
     pthread_cond_t canEat[PHILOSOPHERS];
@@ -24,12 +27,14 @@ typedef struct {
     philosopher_t philosophers[PHILOSOPHERS];
 }comida_t;
 
+//Macro para inicializar un filosofo
 #define PHILOSOPHER_INIT(id) {\
     (id),\
     (id) - 1 % PHILOSOPHERS,\
     (id) + 1 % PHILOSOPHERS\
 }
 
+//Funcion que inicializa la estructura comida_t
 void setup(comida_t *comida);
 
 void pick(uint8_t id, comida_t *comida);

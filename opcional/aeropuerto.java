@@ -1,22 +1,71 @@
+import java.util.concurrent.Semaphore;
+
 public class Avion extends Thread {
 
-    int hangar = 10;
-    Semaphore p;
+    private int id;
+
+    private static final int K_HANGARES = 10;
+    private static final int AVIONES = 30;
+    private static Semaphore hangar;
+    private static Semaphore pista;
+
+    public Avion(int id) {
+        this.id = id;
+    }
+
+    public void aterrizar() {
+        hangar.aquire();
+        pista.aquire();
+
+        Thread.sleep(1000);
+        System.out.println("El avion " + this.id + " aterriza");
+
+        pista.release();
+    }
+
+    public void cargar() {
+        Thread.sleep(500);
+        System.out.println("El avion " + this.id + " carga");
+    }
+
+    public void descargar() {
+        Thread.sleep(500);
+        System.out.println("El avion " + this.id + " descarga");
+
+        pista.aquire();
+        hangar.release();
+    }
+    public void despegar() {
+        Thread.sleep(1000);
+        System.out.println("El avion " + this.id + " despega");
+
+        pista.release();
+    }
+
 
     public void run() {
-
+        aterrizar();
+        cargar();
+        descargar();
+        despegar();
     }
 
     public static void main(String args[]) {
-        p = new Semaphore(1, true);
-        Thread thr1 = new Avion(0);
-        Thread thr2 = new Avion(1);
-        thr1.start();
-        thr2.start();
+        this.hangar = new Semaphore(K_HANGARES);
+        this.pista = new Semaphore(1);
+        ArrayList<Thread> threads = new ArrayList<Thread>();
+
+        for (int i = 0; i < aviones; i++) {
+            Thread thr = new Avion(i);
+            thr.start();
+            threads.add(thr);
+        }
 
         try{
-            thr1.join();                                    //esperamos a que los threads acaben para mostrar por pantalla al final el resultado obtenido
-            thr2.join();
+            for (int i = 0; i < aviones; i++) {
+                Thread thr = threads.get(i);
+                thr.join();
+            }
         }catch(InterruptedException e) {
             return;
         }

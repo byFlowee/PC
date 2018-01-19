@@ -6,8 +6,8 @@ public class Avion extends Thread {
 
     private static final int K_HANGARES = 10;
     private static final int AVIONES = 20;
-    private static Semaphore hangar;
-    private static Semaphore pista;
+    private static Semaphore hangar;    //Semaforo que controla los hangares disponibles (inicializado a K_HANGARES)
+    private static Semaphore pista;     //Mutex que controla el acceso a la pista
 
     public Avion(int id) {
         this.id = id;
@@ -15,14 +15,14 @@ public class Avion extends Thread {
 
     public void aterrizar() {
         try{
-            hangar.acquire();
+            hangar.acquire();   //reservamos el hangar antes de intentar reservar la pista
             System.out.println("El avion " + this.id + " reserva hangar. Hangares libres: " + hangar.availablePermits());
-            pista.acquire();
+            pista.acquire();    //con el hangar reservado, intentamos obtener la pista
 
             Thread.sleep(250);
             System.out.println("El avion " + this.id + " aterriza");
 
-            pista.release();
+            pista.release();    //liberamos la pista una vez aterrizamos
         }catch(InterruptedException e) {
             e.printStackTrace();
         }
@@ -42,8 +42,8 @@ public class Avion extends Thread {
             Thread.sleep(100);
             System.out.println("El avion " + this.id + " descarga");
 
-            pista.acquire();
-            hangar.release();
+            pista.acquire();    //tratamos de obtener la pista para despegar
+            hangar.release();   //una vez obtenemos la pista  podemos liberar el hangar y despegar
             System.out.println("El avion " + this.id + " deja el hangar. Hangares libres: " + hangar.availablePermits());
         }catch(InterruptedException e) {
             e.printStackTrace();
@@ -75,7 +75,7 @@ public class Avion extends Thread {
 
         for (int i = 0; i < AVIONES; i++) {
             try{
-                Thread.sleep((int)Math.random()*200 + 100);
+                Thread.sleep((int)Math.random()*200 + 100); //esperamos un tiempo aleatorio para la llegada de los aviones
                 Thread thr = new Avion(i);
                 thr.start();
                 threads[i] = new Thread(thr);
